@@ -1,11 +1,16 @@
 """SQLAlchemy ORM models for projects, files and analyses."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from urban_compliance.db import Base
+from .db import Base
+
+
+def _utcnow() -> datetime:
+    """Return the current UTC time as a timezone-aware datetime."""
+    return datetime.now(timezone.utc)
 
 
 class Project(Base):
@@ -15,7 +20,7 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String(200))
     parcel_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     files: Mapped[list["ProjectFile"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
@@ -37,7 +42,7 @@ class ProjectFile(Base):
     status: Mapped[str] = mapped_column(String(30), default="uploaded")
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     detected_crs: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     project: Mapped["Project"] = relationship(back_populates="files")
 
@@ -50,6 +55,6 @@ class Analysis(Base):
     status: Mapped[str] = mapped_column(String(30), default="pending")
     engine_version: Mapped[str] = mapped_column(String(30), default="0.1.0")
     result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     project: Mapped["Project"] = relationship(back_populates="analyses")
