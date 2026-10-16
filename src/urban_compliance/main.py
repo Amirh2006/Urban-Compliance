@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from . import __version__
 from .config import settings
 from .db import Base, engine
+from .routers import analyses, files, health, parcels, projects
 
 
 @asynccontextmanager
@@ -27,8 +28,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-
-@app.get("/health", tags=["health"])
-def health() -> dict:
-    """Liveness probe used by operators and integration tests."""
-    return {"status": "ok", "version": __version__}
+app.include_router(health.router)
+app.include_router(projects.router)
+app.include_router(files.router)
+app.include_router(parcels.router)
+app.include_router(analyses.router)
