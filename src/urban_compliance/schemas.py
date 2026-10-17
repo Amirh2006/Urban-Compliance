@@ -65,3 +65,23 @@ class AnalysisOut(BaseModel):
     engine_version: str
     result: dict | None
     created_at: datetime
+
+class ReportOut(BaseModel):
+    """JSON report returned to clients for a completed analysis."""
+
+    report_id: str
+    report_version: str
+    generated_at: str
+    disclaimer: str
+    project: dict[str, Any]
+    analysis: dict[str, Any]
+    summary: dict[str, Any]
+    files: list[dict[str, Any]]
+    tests: list[dict[str, Any]]
+    warnings: list[str]
+    review_items: list[str]
+    assumptions: list[str]
+    limitations: list[str]
+    input_error: str | None = None
+    rules_applied: list[Any] = Field(default_factory=list)
+    sources: list[Any] = Field(default_factory=list)
