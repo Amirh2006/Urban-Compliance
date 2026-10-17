@@ -1,0 +1,1 @@
+"""Geometry helpers: CRS handling and validation engine."""

@@ -1,0 +1,1 @@
+"""File adapters that normalize supported input formats to GeoJSON."""
