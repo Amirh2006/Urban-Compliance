@@ -1,4 +1,4 @@
-"""Analysis endpoints combining file adapters and the geometry engine."""
+"""Analysis endpoints combining file adapters, the geometry engine and rules."""
 
 from pathlib import Path
 
@@ -9,8 +9,27 @@ from .. import models, schemas
 from ..db import get_db
 from ..file_adapters.registry import parse_file
 from ..geometry.engine import ENGINE_VERSION, validate_geometry
+from ..rules.registry import evaluate_all
 
 router = APIRouter(prefix="/api/v1", tags=["analyses"])
+
+
+def _aggregate_status(geometry_valid: bool, rule_results: list[dict]) -> str:
+    """Aggregate a final analysis status from geometry and rule results."""
+    if not geometry_valid:
+        return "failed"
+
+    if not rule_results:
+        return "partial"
+
+    statuses = {r["status"] for r in rule_results}
+    if "failed" in statuses:
+        return "failed"
+    if "needs_review" in statuses:
+        return "needs_review"
+    if "verified" in statuses and statuses <= {"verified", "not_applicable"}:
+        return "verified"
+    return "partial"
 
 
 @router.post("/analyses", response_model=schemas.AnalysisOut, status_code=201)
@@ -28,7 +47,7 @@ def create_analysis(payload: schemas.AnalysisRequest, db: Session = Depends(get_
     db.commit()
     db.refresh(analysis)
 
-    result_payload: dict = {"tests": []}
+    result_payload: dict = {"tests": [], "rules": []}
 
     geojson: dict | None = None
     crs: str | None = None
@@ -78,7 +97,31 @@ def create_analysis(payload: schemas.AnalysisRequest, db: Session = Depends(get_
             "warnings": v.warnings,
         }
     )
-    analysis.status = "verified" if v.valid else "failed"
+
+    metrics = {
+        "area_m2": v.area_m2,
+        "perimeter_m": v.perimeter_m,
+        "crs": v.crs,
+    }
+
+    rule_evaluations = evaluate_all(db, metrics)
+    rule_dicts = [
+        {
+            "rule_id": r.rule_id,
+            "rule_code": r.rule_code,
+            "kind": r.kind,
+            "status": r.status,
+            "message": r.message,
+            "threshold": r.threshold,
+            "actual": r.actual,
+            "source_reference": r.source_reference,
+            "warnings": r.warnings,
+        }
+        for r in rule_evaluations
+    ]
+    result_payload["rules"] = rule_dicts
+
+    analysis.status = _aggregate_status(v.valid, rule_dicts)
     analysis.result = result_payload
     db.commit()
     db.refresh(analysis)
