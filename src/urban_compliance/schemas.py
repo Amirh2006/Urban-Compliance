@@ -85,3 +85,42 @@ class ReportOut(BaseModel):
     input_error: str | None = None
     rules_applied: list[Any] = Field(default_factory=list)
     sources: list[Any] = Field(default_factory=list)
+
+class RuleCreate(BaseModel):
+    """Payload for creating a new rule."""
+
+    code: str = Field(min_length=1, max_length=80)
+    title: str = Field(min_length=1, max_length=200)
+    kind: str = Field(pattern="^(min_area|max_area|min_perimeter)$")
+    threshold: float
+    source_reference: str | None = Field(default=None, max_length=300)
+    document_number: str | None = Field(default=None, max_length=120)
+    published_at: str | None = Field(default=None, max_length=40)
+    effective_from: str | None = Field(default=None, max_length=40)
+    version: str = Field(default="1.0.0", max_length=30)
+    spatial_scope: str | None = Field(default=None, max_length=120)
+    is_active: bool = True
+    is_verified: bool = False
+    description: str | None = None
+
+
+class RuleOut(BaseModel):
+    """Serialized rule returned by the API."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    code: str
+    title: str
+    kind: str
+    threshold: float
+    source_reference: str | None
+    document_number: str | None
+    published_at: str | None
+    effective_from: str | None
+    version: str
+    spatial_scope: str | None
+    is_active: bool
+    is_verified: bool
+    description: str | None
+    created_at: datetime
