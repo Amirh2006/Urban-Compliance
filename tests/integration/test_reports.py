@@ -25,7 +25,7 @@ def _create_project_and_analysis(client: TestClient, geometry: dict | None) -> i
     return analysis.json()["id"]
 
 
-def test_report_for_verified_analysis() -> None:
+def test_report_for_analysis_without_rules() -> None:
     with TestClient(app) as client:
         analysis_id = _create_project_and_analysis(client, VALID_POLYGON)
         response = client.get(f"/api/v1/analyses/{analysis_id}/report")
@@ -39,10 +39,11 @@ def test_report_for_verified_analysis() -> None:
     assert "not constitute an official approval" in report["disclaimer"]
 
     assert report["project"]["name"] == "Report Project"
-    assert report["analysis"]["status"] == "verified"
+    # No rules configured, so overall status is partial rather than verified.
+    assert report["analysis"]["status"] == "partial"
 
     summary = report["summary"]
-    assert summary["overall_status"] == "verified"
+    assert summary["overall_status"] == "partial"
     assert summary["test_count"] == 1
     assert summary["verified_count"] == 1
     assert summary["failed_count"] == 0
@@ -88,5 +89,6 @@ def test_report_includes_warnings_from_missing_crs() -> None:
 
     assert response.status_code == 200
     report = response.json()
-    assert report["analysis"]["status"] == "verified"
+    # Geometry is valid but no rules configured: partial.
+    assert report["analysis"]["status"] == "partial"
     assert any("CRS" in w for w in report["warnings"])
