@@ -57,7 +57,7 @@ def test_parcels_validate_missing_crs_yields_warning() -> None:
     assert body["warnings"]
 
 
-def test_create_analysis_with_geometry() -> None:
+def test_create_analysis_with_geometry_and_no_rules_yields_partial() -> None:
     with TestClient(app) as client:
         project = client.post("/api/v1/projects", json={"name": "Analysis Project"})
         project_id = project.json()["id"]
@@ -68,9 +68,10 @@ def test_create_analysis_with_geometry() -> None:
         )
     assert response.status_code == 201
     body = response.json()
-    assert body["status"] == "verified"
+    # No rules are configured, so only geometry was checked: partial coverage.
+    assert body["status"] == "partial"
     assert body["result"]["tests"][0]["status"] == "verified"
-
+    assert body["result"]["rules"] == []
 
 def test_create_analysis_without_input_marks_failed() -> None:
     with TestClient(app) as client:

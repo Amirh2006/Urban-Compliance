@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from . import __version__
 from .config import settings
 from .db import Base, engine
-from .routers import analyses, files, health, parcels, projects, reports
+from .routers import analyses, files, health, parcels, projects, reports, rules
 
 
 @asynccontextmanager
@@ -32,5 +32,6 @@ app.include_router(health.router)
 app.include_router(projects.router)
 app.include_router(files.router)
 app.include_router(parcels.router)
+app.include_router(rules.router)
 app.include_router(analyses.router)
 app.include_router(reports.router)

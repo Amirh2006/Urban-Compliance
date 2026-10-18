@@ -6,7 +6,7 @@ from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
-
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String, Text
 
 def _utcnow() -> datetime:
     """Return the current UTC time as a timezone-aware datetime."""
@@ -58,3 +58,24 @@ class Analysis(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     project: Mapped["Project"] = relationship(back_populates="analyses")
+
+class Rule(Base):
+    """A data-driven municipal rule with legal source references."""
+
+    __tablename__ = "rules"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    kind: Mapped[str] = mapped_column(String(40))
+    threshold: Mapped[float] = mapped_column(Float)
+    source_reference: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    document_number: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    published_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    effective_from: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    version: Mapped[str] = mapped_column(String(30), default="1.0.0")
+    spatial_scope: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    is_active: Mapped[bool] = mapped_column(default=True)
+    is_verified: Mapped[bool] = mapped_column(default=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
