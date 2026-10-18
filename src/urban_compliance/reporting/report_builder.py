@@ -107,6 +107,6 @@ def build_report(project: models.Project, analysis: models.Analysis) -> dict[str
         "assumptions": ASSUMPTIONS,
         "limitations": LIMITATIONS,
         "input_error": result.get("error"),
-        "rules_applied": [],
+        "rules_applied": result.get("rules") or [],
         "sources": [],
     }
