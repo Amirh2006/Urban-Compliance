@@ -13,12 +13,12 @@ os.environ.setdefault("UC_DATABASE_URL", f"sqlite:///{Path(_TMP) / 'test.db'}")
 
 
 @pytest.fixture(autouse=True)
-def _clean_rules_table():
-    """Ensure every test starts with an empty rules table.
+def _clean_tables():
+    """Start every test with an empty rules and knowledge state.
 
-    Rules persist across tests within the same SQLite file, so without this
-    fixture a rule created in one test can leak into another and change its
-    outcome. We also ensure the schema exists before querying.
+    Rules and knowledge records persist across tests within the same SQLite
+    file. Without this fixture, records created in one test would leak into
+    another and change its outcome.
     """
     from urban_compliance import models  # noqa: F401  (register ORM models)
     from urban_compliance.db import Base, SessionLocal, engine
@@ -26,6 +26,8 @@ def _clean_rules_table():
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()
     try:
+        session.query(models.KnowledgeChunk).delete()
+        session.query(models.KnowledgeSource).delete()
         session.query(models.Rule).delete()
         session.commit()
     finally:
