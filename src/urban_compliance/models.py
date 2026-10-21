@@ -79,3 +79,46 @@ class Rule(Base):
     is_verified: Mapped[bool] = mapped_column(default=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+
+class KnowledgeSource(Base):
+    """An uploaded document containing regulatory text."""
+
+    __tablename__ = "knowledge_sources"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(300))
+    document_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    document_number: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    published_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    effective_from: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    version: Mapped[str] = mapped_column(String(30), default="1.0.0")
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    filename: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    stored_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    page_count: Mapped[int] = mapped_column(Integer, default=0)
+    extraction_status: Mapped[str] = mapped_column(String(30), default="pending")
+    extraction_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_verified: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+    chunks: Mapped[list["KnowledgeChunk"]] = relationship(
+        back_populates="source", cascade="all, delete-orphan"
+    )
+
+
+class KnowledgeChunk(Base):
+    """A chunk of text extracted from a knowledge source."""
+
+    __tablename__ = "knowledge_chunks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_id: Mapped[int] = mapped_column(ForeignKey("knowledge_sources.id"))
+    page_number: Mapped[int] = mapped_column(Integer)
+    chunk_index: Mapped[int] = mapped_column(Integer)
+    text: Mapped[str] = mapped_column(Text)
+    char_count: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+    source: Mapped["KnowledgeSource"] = relationship(back_populates="chunks")
