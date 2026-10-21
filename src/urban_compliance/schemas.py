@@ -124,3 +124,68 @@ class RuleOut(BaseModel):
     is_verified: bool
     description: str | None
     created_at: datetime
+
+
+class KnowledgeSourceCreate(BaseModel):
+    """Payload for creating a knowledge source."""
+
+    title: str = Field(min_length=1, max_length=300)
+    document_type: str | None = Field(default=None, max_length=80)
+    document_number: str | None = Field(default=None, max_length=120)
+    published_at: str | None = Field(default=None, max_length=40)
+    effective_from: str | None = Field(default=None, max_length=40)
+    version: str = Field(default="1.0.0", max_length=30)
+    description: str | None = None
+    is_verified: bool = False
+
+
+class KnowledgeSourceOut(BaseModel):
+    """Serialized knowledge source without its chunks."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    document_type: str | None
+    document_number: str | None
+    published_at: str | None
+    effective_from: str | None
+    version: str
+    description: str | None
+    filename: str | None
+    size_bytes: int | None
+    page_count: int
+    extraction_status: str
+    extraction_error: str | None
+    is_verified: bool
+    created_at: datetime
+
+
+class KnowledgeChunkOut(BaseModel):
+    """Serialized text chunk belonging to a source."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    source_id: int
+    page_number: int
+    chunk_index: int
+    text: str
+    char_count: int
+
+
+class KnowledgeSourceDetail(KnowledgeSourceOut):
+    """Knowledge source with its extracted chunks."""
+
+    chunks: list[KnowledgeChunkOut] = Field(default_factory=list)
+
+
+class KnowledgeSearchHit(BaseModel):
+    """A search hit pointing to a specific chunk."""
+
+    chunk_id: int
+    source_id: int
+    source_title: str
+    page_number: int
+    chunk_index: int
+    snippet: str
