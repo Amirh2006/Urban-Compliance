@@ -172,10 +172,18 @@ export interface KnowledgeSearchHit {
 
 // API
 export const api = {
-  health: () => request<{ status: string; version: string }>("/health".replace("/api/v1", "")),
+  health: () =>
+    fetch("/health").then((r) => r.json()) as Promise<{
+      status: string;
+      version: string;
+    }>,
 
   // Projects
-  createProject: (data: { name: string; parcel_code?: string; description?: string }) =>
+  createProject: (data: {
+    name: string;
+    parcel_code?: string;
+    description?: string;
+  }) =>
     request<Project>("/projects", { method: "POST", body: JSON.stringify(data) }),
   listProjects: () => request<Project[]>("/projects"),
   getProject: (id: number) => request<Project>(`/projects/${id}`),
@@ -203,12 +211,30 @@ export const api = {
     project_id: number;
     file_id?: number;
     geometry?: Geometry & { crs?: string };
-  }) => request<Analysis>("/analyses", { method: "POST", body: JSON.stringify(data) }),
+  }) =>
+    request<Analysis>("/analyses", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   getAnalysis: (id: number) => request<Analysis>(`/analyses/${id}`),
   getReport: (id: number) => request<Report>(`/analyses/${id}/report`),
 
   // Rules
+  createRule: (data: {
+    code: string;
+    title: string;
+    kind: string;
+    threshold: number;
+    source_reference?: string;
+    document_number?: string;
+    version?: string;
+    description?: string;
+  }) => request<Rule>("/rules", { method: "POST", body: JSON.stringify(data) }),
   listRules: () => request<Rule[]>("/rules"),
+  verifyRule: (id: number) =>
+    request<Rule>(`/rules/${id}/verify`, { method: "PATCH" }),
+  deactivateRule: (id: number) =>
+    request<Rule>(`/rules/${id}/deactivate`, { method: "PATCH" }),
 
   // Knowledge
   listSources: () => request<KnowledgeSource[]>("/knowledge/sources"),
@@ -218,7 +244,11 @@ export const api = {
     document_number?: string;
     version?: string;
     description?: string;
-  }) => request<KnowledgeSource>("/knowledge/sources", { method: "POST", body: JSON.stringify(data) }),
+  }) =>
+    request<KnowledgeSource>("/knowledge/sources", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   uploadDocument: (sourceId: number, file: File) =>
     upload<KnowledgeSource>(`/knowledge/sources/${sourceId}/document`, file),
   searchKnowledge: (q: string) =>
