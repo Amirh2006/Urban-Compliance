@@ -6,6 +6,7 @@ import { ProjectDetail } from "./pages/ProjectDetail";
 import { NewAnalysis } from "./pages/NewAnalysis";
 import { AnalysisReport } from "./pages/AnalysisReport";
 import { Knowledge } from "./pages/Knowledge";
+import { Rules } from "./pages/Rules";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/analysis/new" element={<NewAnalysis />} />
           <Route path="/analysis/:id" element={<AnalysisReport />} />
           <Route path="/knowledge" element={<Knowledge />} />
+          <Route path="/rules" element={<Rules />} />
         </Route>
       </Routes>
     </BrowserRouter>

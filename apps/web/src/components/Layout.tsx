@@ -4,6 +4,7 @@ const navItems = [
   { to: "/", label: "داشبورد" },
   { to: "/projects", label: "پروژه‌ها" },
   { to: "/analysis/new", label: "تحلیل جدید" },
+  { to: "/rules", label: "قواعد" },
   { to: "/knowledge", label: "آرشیو دانش" },
 ];
 
@@ -13,7 +14,7 @@ export function Layout() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white font-bold">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 font-bold text-white">
               U
             </div>
             <div>
