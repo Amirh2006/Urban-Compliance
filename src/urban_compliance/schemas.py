@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
+from .rules.evaluator import SUPPORTED_KINDS
 
 
 class ProjectCreate(BaseModel):
@@ -85,13 +86,17 @@ class ReportOut(BaseModel):
     input_error: str | None = None
     rules_applied: list[Any] = Field(default_factory=list)
     sources: list[Any] = Field(default_factory=list)
+# Built from SUPPORTED_KINDS so this schema and the evaluator stay in sync:
+# adding a new rule kind in one place updates both.
+_KIND_PATTERN = "^(?:" + "|".join(SUPPORTED_KINDS) + ")$"
+
 
 class RuleCreate(BaseModel):
     """Payload for creating a new rule."""
 
     code: str = Field(min_length=1, max_length=80)
     title: str = Field(min_length=1, max_length=200)
-    kind: str = Field(pattern="^(min_area|max_area|min_perimeter)$")
+    kind: str = Field(pattern=_KIND_PATTERN)
     threshold: float
     source_reference: str | None = Field(default=None, max_length=300)
     document_number: str | None = Field(default=None, max_length=120)
