@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from . import __version__
 from .config import settings
 from .db import Base, engine
+from .migrations import ensure_schema_upgrades
 from .routers import (
     analyses,
     files,
@@ -21,9 +22,10 @@ from .routers import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create local directories and database tables on startup."""
+    """Create local directories, database tables and apply schema upgrades."""
     settings.ensure_dirs()
     Base.metadata.create_all(bind=engine)
+    ensure_schema_upgrades()
     yield
 
 

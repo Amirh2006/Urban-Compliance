@@ -11,7 +11,7 @@ class ProjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     parcel_code: str | None = Field(default=None, max_length=120)
     description: str | None = None
-
+    spatial_scope: str | None = Field(default=None, max_length=120)
 
 class ProjectOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -20,8 +20,8 @@ class ProjectOut(BaseModel):
     name: str
     parcel_code: str | None
     description: str | None
+    spatial_scope: str | None
     created_at: datetime
-
 
 class FileOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

@@ -20,6 +20,8 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String(200))
     parcel_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Optional spatial scope (e.g. district name) used to filter applicable rules.
+    spatial_scope: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     files: Mapped[list["ProjectFile"]] = relationship(
