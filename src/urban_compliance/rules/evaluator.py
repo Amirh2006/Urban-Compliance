@@ -11,11 +11,40 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-# Supported rule kinds in this MVP. Adding a new kind means adding a new
-# entry here and a corresponding branch in ``evaluate_rule``.
-SUPPORTED_KINDS = ("min_area", "max_area", "min_perimeter")
+# Supported rule kinds. Each kind maps to a single metric in ``_METRIC_BY_KIND``
+# and is compared against its threshold using the direction declared in
+# ``_LOWER_BOUND_KINDS`` / ``_UPPER_BOUND_KINDS``. Adding a new kind means
+# extending all three tables.
+SUPPORTED_KINDS = (
+    "min_area",
+    "max_area",
+    "min_perimeter",
+    "max_height",
+    "min_setback",
+    "max_coverage",
+    "far",
+)
 
 VALID_OUTCOMES = ("verified", "failed", "needs_review", "not_applicable")
+
+# Maps each rule kind to the metric key it consumes from ``metrics``.
+# Coverage and FAR are ratios in the 0..1 range; lengths are in meters;
+# areas are in square meters.
+_METRIC_BY_KIND: dict[str, str] = {
+    "min_area": "area_m2",
+    "max_area": "area_m2",
+    "min_perimeter": "perimeter_m",
+    "max_height": "height_m",
+    "min_setback": "setback_m",
+    "max_coverage": "coverage_ratio",
+    "far": "far_ratio",
+}
+
+# Kinds where a higher actual value is better: pass when actual >= threshold.
+_LOWER_BOUND_KINDS = frozenset({"min_area", "min_perimeter", "min_setback"})
+
+# Kinds where a lower actual value is better: pass when actual <= threshold.
+_UPPER_BOUND_KINDS = frozenset({"max_area", "max_height", "max_coverage", "far"})
 
 
 @dataclass
@@ -35,11 +64,19 @@ class RuleEvaluation:
 
 def _metric_for_kind(kind: str, metrics: dict[str, Any]) -> float | None:
     """Return the metric needed by a rule kind, or None if unavailable."""
-    if kind in ("min_area", "max_area"):
-        return metrics.get("area_m2")
-    if kind == "min_perimeter":
-        return metrics.get("perimeter_m")
-    return None
+    metric_name = _METRIC_BY_KIND.get(kind)
+    if metric_name is None:
+        return None
+    return metrics.get(metric_name)
+
+
+def _passes(kind: str, actual: float, threshold: float) -> bool:
+    """Compare actual against threshold according to the rule's direction."""
+    if kind in _LOWER_BOUND_KINDS:
+        return actual >= threshold
+    if kind in _UPPER_BOUND_KINDS:
+        return actual <= threshold
+    return False  # pragma: no cover - guarded by SUPPORTED_KINDS
 
 
 def evaluate_rule(
@@ -99,15 +136,7 @@ def evaluate_rule(
         )
 
     actual_value = float(actual)
-
-    if kind == "min_area":
-        passes = actual_value >= threshold
-    elif kind == "max_area":
-        passes = actual_value <= threshold
-    elif kind == "min_perimeter":
-        passes = actual_value >= threshold
-    else:  # pragma: no cover - guarded by SUPPORTED_KINDS
-        passes = False
+    passes = _passes(kind, actual_value, threshold)
 
     return RuleEvaluation(
         **base,

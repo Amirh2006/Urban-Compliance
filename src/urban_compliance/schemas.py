@@ -4,13 +4,14 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
+from .rules.evaluator import SUPPORTED_KINDS
 
 
 class ProjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     parcel_code: str | None = Field(default=None, max_length=120)
     description: str | None = None
-
+    spatial_scope: str | None = Field(default=None, max_length=120)
 
 class ProjectOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -19,8 +20,8 @@ class ProjectOut(BaseModel):
     name: str
     parcel_code: str | None
     description: str | None
+    spatial_scope: str | None
     created_at: datetime
-
 
 class FileOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -49,11 +50,20 @@ class ValidateResponse(BaseModel):
     crs: str | None = None
     warnings: list[str] = Field(default_factory=list)
 
+class BuildingInput(BaseModel):
+    """Optional building characteristics used to compute derived metrics."""
+
+    height_m: float | None = Field(default=None, gt=0)
+    footprint_m2: float | None = Field(default=None, gt=0)
+    floors: int | None = Field(default=None, ge=1)
+    setback_m: float | None = Field(default=None, ge=0)
+
 
 class AnalysisRequest(BaseModel):
     project_id: int
     file_id: int | None = None
     geometry: GeometryInput | None = None
+    building: BuildingInput | None = None
 
 
 class AnalysisOut(BaseModel):
@@ -85,13 +95,17 @@ class ReportOut(BaseModel):
     input_error: str | None = None
     rules_applied: list[Any] = Field(default_factory=list)
     sources: list[Any] = Field(default_factory=list)
+# Built from SUPPORTED_KINDS so this schema and the evaluator stay in sync:
+# adding a new rule kind in one place updates both.
+_KIND_PATTERN = "^(?:" + "|".join(SUPPORTED_KINDS) + ")$"
+
 
 class RuleCreate(BaseModel):
     """Payload for creating a new rule."""
 
     code: str = Field(min_length=1, max_length=80)
     title: str = Field(min_length=1, max_length=200)
-    kind: str = Field(pattern="^(min_area|max_area|min_perimeter)$")
+    kind: str = Field(pattern=_KIND_PATTERN)
     threshold: float
     source_reference: str | None = Field(default=None, max_length=300)
     document_number: str | None = Field(default=None, max_length=120)

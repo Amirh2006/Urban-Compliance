@@ -15,7 +15,7 @@ from shapely.validation import explain_validity
 
 from .crs import is_projected, parse_crs
 
-ENGINE_VERSION = "0.1.0"
+ENGINE_VERSION = "0.2.0"
 
 
 @dataclass
@@ -29,6 +29,21 @@ class ValidationResult:
     crs: str | None = None
     engine_version: str = ENGINE_VERSION
     warnings: list[str] = field(default_factory=list)
+
+
+@dataclass
+class BuildingInputs:
+    """User-supplied building characteristics for metric computation.
+
+    All fields are optional; missing values simply mean the corresponding
+    metric will not be produced, so dependent rules fall back to
+    ``needs_review`` in the evaluator.
+    """
+
+    height_m: float | None = None
+    footprint_m2: float | None = None
+    floors: int | None = None
+    setback_m: float | None = None
 
 
 def _build_geometry(geojson: dict):
@@ -80,6 +95,42 @@ def validate_geometry(geojson: dict, crs_value: str | None) -> ValidationResult:
         crs=crs.to_string(),
         warnings=warnings,
     )
+
+
+def compute_metrics(
+    validation: ValidationResult,
+    building: BuildingInputs | None = None,
+) -> dict[str, float | str | None]:
+    """Assemble the metrics dict consumed by the rule evaluator.
+
+    Parcel metrics (area, perimeter) come from ``validation``. Building
+    metrics (height, setback) come from ``building`` when supplied. Derived
+    ratios (coverage, FAR) are computed only when both the parcel area and
+    the required building fields are available; otherwise they are omitted
+    so that dependent rules fall back to ``needs_review``.
+    """
+    metrics: dict[str, float | str | None] = {
+        "area_m2": validation.area_m2,
+        "perimeter_m": validation.perimeter_m,
+        "crs": validation.crs,
+    }
+
+    if building is None:
+        return metrics
+
+    if building.height_m is not None:
+        metrics["height_m"] = float(building.height_m)
+    if building.setback_m is not None:
+        metrics["setback_m"] = float(building.setback_m)
+
+    area = validation.area_m2
+    footprint = building.footprint_m2
+    if footprint is not None and area:
+        metrics["coverage_ratio"] = float(footprint) / float(area)
+        if building.floors is not None and building.floors >= 1:
+            metrics["far_ratio"] = (float(footprint) * building.floors) / float(area)
+
+    return metrics
 
 
 def geometry_to_geojson(geom) -> dict:

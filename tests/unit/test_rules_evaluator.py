@@ -1,5 +1,8 @@
 """Unit tests for the pure rule evaluator."""
-
+import pytest
+from urban_compliance.rules.evaluator import (
+    SUPPORTED_KINDS, RuleEvaluation, evaluate_rule,
+)
 from urban_compliance.rules.evaluator import evaluate_rule
 
 
@@ -94,3 +97,65 @@ def test_unsupported_kind_yields_needs_review() -> None:
         metrics={"area_m2": 1.0},
     )
     assert result.status == "needs_review"
+
+# --- Phase 1.1: new rule kinds ---
+
+
+@pytest.mark.parametrize(
+    "kind, metric_key, actual, threshold, expected_status",
+    [
+        # max_height: lower is better
+        ("max_height", "height_m", 20.0, 25.0, "verified"),
+        ("max_height", "height_m", 30.0, 25.0, "failed"),
+        # min_setback: higher is better
+        ("min_setback", "setback_m", 3.5, 3.0, "verified"),
+        ("min_setback", "setback_m", 2.0, 3.0, "failed"),
+        # max_coverage: lower is better
+        ("max_coverage", "coverage_ratio", 0.5, 0.6, "verified"),
+        ("max_coverage", "coverage_ratio", 0.75, 0.6, "failed"),
+        # far: lower is better
+        ("far", "far_ratio", 2.0, 2.5, "verified"),
+        ("far", "far_ratio", 3.0, 2.5, "failed"),
+    ],
+)
+def test_evaluate_new_kinds(kind, metric_key, actual, threshold, expected_status):
+    """Each new kind compares the correct metric in the correct direction."""
+    result = evaluate_rule(
+        rule_id=1,
+        rule_code=f"TEST_{kind.upper()}",
+        kind=kind,
+        threshold=threshold,
+        metrics={metric_key: actual},
+        is_active=True,
+        is_verified=True,
+    )
+    assert isinstance(result, RuleEvaluation)
+    assert result.status == expected_status
+    assert result.actual == actual
+    assert result.threshold == threshold
+    assert result.kind == kind
+
+
+@pytest.mark.parametrize(
+    "kind", ["max_height", "min_setback", "max_coverage", "far"]
+)
+def test_evaluate_new_kinds_missing_metric(kind):
+    """New kinds yield needs_review when their metric is missing."""
+    result = evaluate_rule(
+        rule_id=1,
+        rule_code=f"TEST_{kind.upper()}",
+        kind=kind,
+        threshold=1.0,
+        metrics={},  # no metrics available
+        is_active=True,
+        is_verified=True,
+    )
+    assert result.status == "needs_review"
+    assert result.actual is None
+    assert result.warnings == ["metric missing; cannot evaluate rule"]
+
+
+def test_supported_kinds_includes_phase_1_1_kinds():
+    """The four new kinds are registered as supported."""
+    for kind in ("max_height", "min_setback", "max_coverage", "far"):
+        assert kind in SUPPORTED_KINDS

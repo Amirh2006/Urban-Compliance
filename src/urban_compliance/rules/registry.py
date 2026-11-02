@@ -20,19 +20,36 @@ def load_active_rules(db: Session) -> list[models.Rule]:
     )
 
 
+def _scope_matches(rule_scope: str | None, parcel_scope: str | None) -> bool:
+    """Return True when a rule with ``rule_scope`` applies to ``parcel_scope``.
+
+    - A rule without a scope is global and always applies.
+    - When the parcel does not declare a scope, every rule is evaluated so
+      that the user sees all candidate rules, not a silent subset.
+    - Otherwise, the rule applies only when both scopes are exactly equal.
+    """
+    if rule_scope is None:
+        return True
+    if parcel_scope is None:
+        return True
+    return rule_scope == parcel_scope
+
+
 def evaluate_all(
     db: Session,
     metrics: dict[str, Any],
     *,
     spatial_scope: str | None = None,
 ) -> list[RuleEvaluation]:
-    """Evaluate every active rule and return a list of evaluations.
+    """Evaluate every applicable active rule and return a list of evaluations.
 
-    ``spatial_scope`` is currently informational only. It is stored on the
-    rule for traceability but does not filter evaluation in this MVP.
+    ``spatial_scope`` is the parcel's scope. Rules whose scope does not match
+    are skipped before evaluation, so their outcome is never reported.
     """
     results: list[RuleEvaluation] = []
     for rule in load_active_rules(db):
+        if not _scope_matches(rule.spatial_scope, spatial_scope):
+            continue
         results.append(
             evaluate_rule(
                 rule_id=rule.id,
