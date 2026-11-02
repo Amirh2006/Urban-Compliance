@@ -50,11 +50,20 @@ class ValidateResponse(BaseModel):
     crs: str | None = None
     warnings: list[str] = Field(default_factory=list)
 
+class BuildingInput(BaseModel):
+    """Optional building characteristics used to compute derived metrics."""
+
+    height_m: float | None = Field(default=None, gt=0)
+    footprint_m2: float | None = Field(default=None, gt=0)
+    floors: int | None = Field(default=None, ge=1)
+    setback_m: float | None = Field(default=None, ge=0)
+
 
 class AnalysisRequest(BaseModel):
     project_id: int
     file_id: int | None = None
     geometry: GeometryInput | None = None
+    building: BuildingInput | None = None
 
 
 class AnalysisOut(BaseModel):

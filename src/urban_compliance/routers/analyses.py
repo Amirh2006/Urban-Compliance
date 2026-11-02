@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..db import get_db
 from ..file_adapters.registry import parse_file
-from ..geometry.engine import ENGINE_VERSION, validate_geometry
+from ..geometry.engine import (
+    ENGINE_VERSION,
+    BuildingInputs,
+    compute_metrics,
+    validate_geometry,
+)
 from ..rules.registry import evaluate_all
 
 router = APIRouter(prefix="/api/v1", tags=["analyses"])
@@ -30,6 +35,18 @@ def _aggregate_status(geometry_valid: bool, rule_results: list[dict]) -> str:
     if "verified" in statuses and statuses <= {"verified", "not_applicable"}:
         return "verified"
     return "partial"
+
+
+def _building_inputs(payload: schemas.AnalysisRequest) -> BuildingInputs | None:
+    """Convert the API building payload into engine-level inputs."""
+    if payload.building is None:
+        return None
+    return BuildingInputs(
+        height_m=payload.building.height_m,
+        footprint_m2=payload.building.footprint_m2,
+        floors=payload.building.floors,
+        setback_m=payload.building.setback_m,
+    )
 
 
 @router.post("/analyses", response_model=schemas.AnalysisOut, status_code=201)
@@ -98,11 +115,7 @@ def create_analysis(payload: schemas.AnalysisRequest, db: Session = Depends(get_
         }
     )
 
-    metrics = {
-        "area_m2": v.area_m2,
-        "perimeter_m": v.perimeter_m,
-        "crs": v.crs,
-    }
+    metrics = compute_metrics(v, _building_inputs(payload))
 
     rule_evaluations = evaluate_all(db, metrics)
     rule_dicts = [
