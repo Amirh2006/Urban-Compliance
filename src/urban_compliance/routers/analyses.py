@@ -117,7 +117,7 @@ def create_analysis(payload: schemas.AnalysisRequest, db: Session = Depends(get_
 
     metrics = compute_metrics(v, _building_inputs(payload))
 
-    rule_evaluations = evaluate_all(db, metrics)
+    rule_evaluations = evaluate_all(db, metrics, spatial_scope=project.spatial_scope)
     rule_dicts = [
         {
             "rule_id": r.rule_id,
