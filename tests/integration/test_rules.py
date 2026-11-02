@@ -126,3 +126,116 @@ def test_report_includes_rule_results() -> None:
         body = report.json()
         assert body["rules_applied"]
         assert any(r["rule_code"] == "MIN_AREA_REPORT" for r in body["rules_applied"])
+
+# --- Phase 1.3: spatial scope filtering ---
+
+
+def _create_scoped_project(client: TestClient, *, scope: str | None, name: str) -> int:
+    """Create a project with an optional spatial scope and return its id."""
+    payload: dict = {"name": name}
+    if scope is not None:
+        payload["spatial_scope"] = scope
+    response = client.post("/api/v1/projects", json=payload)
+    assert response.status_code == 201
+    return response.json()["id"]
+
+
+def test_project_persists_spatial_scope() -> None:
+    with TestClient(app) as client:
+        project_id = _create_scoped_project(client, scope="district_3", name="Scoped")
+        fetched = client.get(f"/api/v1/projects/{project_id}")
+        assert fetched.status_code == 200
+        assert fetched.json()["spatial_scope"] == "district_3"
+
+
+def test_project_without_spatial_scope_serialises_as_null() -> None:
+    with TestClient(app) as client:
+        project_id = _create_scoped_project(client, scope=None, name="Unscoped")
+        fetched = client.get(f"/api/v1/projects/{project_id}")
+        assert fetched.json()["spatial_scope"] is None
+
+
+def test_scoped_rule_applies_when_project_scope_matches() -> None:
+    with TestClient(app) as client:
+        _create_rule(
+            client,
+            code="MIN_AREA_D3",
+            threshold=50.0,
+            is_verified=True,
+            spatial_scope="district_3",
+        )
+        project_id = _create_scoped_project(client, scope="district_3", name="Match")
+
+        analysis = client.post(
+            "/api/v1/analyses",
+            json={"project_id": project_id, "geometry": VALID_POLYGON},
+        )
+        body = analysis.json()
+        assert analysis.status_code == 201
+        rule_codes = [r["rule_code"] for r in body["result"]["rules"]]
+        assert "MIN_AREA_D3" in rule_codes
+
+
+def test_scoped_rule_is_skipped_when_project_scope_differs() -> None:
+    with TestClient(app) as client:
+        _create_rule(
+            client,
+            code="MIN_AREA_D5",
+            threshold=1000.0,  # would fail if evaluated
+            is_verified=True,
+            spatial_scope="district_5",
+        )
+        project_id = _create_scoped_project(client, scope="district_3", name="Mismatch")
+
+        analysis = client.post(
+            "/api/v1/analyses",
+            json={"project_id": project_id, "geometry": VALID_POLYGON},
+        )
+        body = analysis.json()
+        # Rule was filtered out, so the analysis cannot fail because of it.
+        assert analysis.status_code == 201
+        rule_codes = [r["rule_code"] for r in body["result"]["rules"]]
+        assert "MIN_AREA_D5" not in rule_codes
+
+
+def test_global_rule_applies_to_scoped_project() -> None:
+    with TestClient(app) as client:
+        _create_rule(
+            client,
+            code="MIN_AREA_GLOBAL",
+            threshold=50.0,
+            is_verified=True,
+            spatial_scope=None,
+        )
+        project_id = _create_scoped_project(client, scope="district_3", name="Global")
+
+        analysis = client.post(
+            "/api/v1/analyses",
+            json={"project_id": project_id, "geometry": VALID_POLYGON},
+        )
+        body = analysis.json()
+        rule_codes = [r["rule_code"] for r in body["result"]["rules"]]
+        assert "MIN_AREA_GLOBAL" in rule_codes
+
+
+def test_unscoped_project_evaluates_every_rule() -> None:
+    with TestClient(app) as client:
+        _create_rule(
+            client, code="MIN_AREA_ANY_GLOBAL",
+            threshold=50.0, is_verified=True, spatial_scope=None,
+        )
+        _create_rule(
+            client, code="MIN_AREA_ANY_D7",
+            threshold=50.0, is_verified=True, spatial_scope="district_7",
+        )
+        project_id = _create_scoped_project(client, scope=None, name="NoScope")
+
+        analysis = client.post(
+            "/api/v1/analyses",
+            json={"project_id": project_id, "geometry": VALID_POLYGON},
+        )
+        body = analysis.json()
+        rule_codes = [r["rule_code"] for r in body["result"]["rules"]]
+        # Per spec: no project scope means every rule is evaluated.
+        assert "MIN_AREA_ANY_GLOBAL" in rule_codes
+        assert "MIN_AREA_ANY_D7" in rule_codes
